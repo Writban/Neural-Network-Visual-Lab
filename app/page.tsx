@@ -22,6 +22,7 @@ import {
   type Sample,
   trainEpoch,
 } from "./neural-core";
+import NeuralWorkbench from "./neural-workbench";
 
 type ExperimentConfig = {
   architecture: string;
@@ -66,7 +67,7 @@ type TutorialActionType =
 
 type CourseSegment = {
   id: string;
-  chapter: 1 | 2 | 3 | 4;
+  chapter: 1 | 2 | 3 | 4 | 5;
   chapterTitle: string;
   eyebrow: string;
   title: string;
@@ -107,7 +108,7 @@ const chapterOneSegments: CourseSegment[] = [
     chapterTitle: "Understanding predictions",
     eyebrow: "What is the task?",
     title: "Classification means choosing between categories",
-    body: "This lab gives a neural network examples from two groups and asks it to learn how to tell those groups apart. Cream and purple are the two known answers.",
+    body: "This lab gives a neural network examples from two groups and asks it to learn how to tell those groups apart. Cream and teal are the two known answers.",
     why: "Real classifiers use the same idea for tasks such as identifying a type of flower or sorting a message. Dots make the problem visible without assuming any previous knowledge.",
     technical: "This is supervised binary classification: supervised because labelled answers are provided during training, and binary because there are two possible classes.",
     tryThis: "Look only at the XOR dots and identify the two colours. Ignore the controls for now.",
@@ -152,7 +153,7 @@ const chapterOneSegments: CourseSegment[] = [
     chapterTitle: "Understanding predictions",
     eyebrow: "Correct answers",
     title: "Labels tell the network what it should predict",
-    body: "Cream dots use label 0 and purple dots use label 1. During training, the model compares its probability with this known answer.",
+    body: "Cream dots use label 0 and teal dots use label 1. During training, the model compares its probability with this known answer.",
     why: "The label teaches this supervised model which predictions count as correct. It is used during training but is not supplied when predicting a new example.",
     technical: "The target y belongs to {0,1}. It is passed to the loss function, not to the network's input layer.",
     tryThis: "Compare the outlined dot colours with the background prediction colour.",
@@ -178,7 +179,7 @@ const chapterOneSegments: CourseSegment[] = [
     chapterTitle: "Understanding predictions",
     eyebrow: "Confidence",
     title: "The output is a probability, not merely a colour",
-    body: "For every position, the model produces a number between 0 and 1. Values near 0 favour cream; values near 1 favour purple.",
+    body: "For every position, the model produces a number between 0 and 1. Values near 0 favour cream; values near 1 favour teal.",
     why: "A probability preserves more information than a class name. Predictions of 51% and 99% select the same class but express different confidence.",
     technical: "The output uses σ(z)=1/(1+e⁻ᶻ), a sigmoid function that converts an unrestricted weighted sum into a value between 0 and 1.",
     tryThis: "Click anywhere on Experiment A's decision map and read the probability beneath it.",
@@ -195,7 +196,7 @@ const chapterOneSegments: CourseSegment[] = [
     body: "The lab classifies values below 0.5 as Class 0 and values of 0.5 or above as Class 1.",
     why: "The threshold is a separate decision rule. It can be moved in real systems when different kinds of mistakes have different costs.",
     technical: "The predicted class is ŷ=1 when p≥0.5 and ŷ=0 otherwise. Accuracy uses ŷ, while loss uses the complete probability p.",
-    tryThis: "Compare a pale boundary region with a strongly cream or purple region.",
+    tryThis: "Compare a pale boundary region with a strongly cream or teal region.",
     bonusFact: "A screening system may use a lower threshold to catch more possible cases while accepting more false alarms.",
     target: "metrics",
     quiz: {
@@ -240,7 +241,7 @@ const chapterTwoSegments: CourseSegment[] = [
     chapterTitle: "How learning works",
     eyebrow: "Confidence matters",
     title: "Confident mistakes receive a larger penalty",
-    body: "Predicting 51% purple for a cream dot is wrong, but predicting 99% purple is much worse. Cross-entropy represents that difference.",
+    body: "Predicting 51% teal for a cream dot is wrong, but predicting 99% teal is much worse. Cross-entropy represents that difference.",
     why: "The model is encouraged not only to cross the correct threshold, but also to avoid unjustified confidence.",
     technical: "Binary cross-entropy is −[y log(p)+(1−y)log(1−p)]. A completely wrong, highly confident prediction receives a sharply increasing penalty.",
     tryThis: "Contrast what loss and accuracy would report for those two wrong predictions.",
@@ -248,7 +249,7 @@ const chapterTwoSegments: CourseSegment[] = [
     target: "metrics",
     quiz: {
       question: "Which wrong prediction should receive larger loss?",
-      choices: ["51% purple for cream", "99% purple for cream", "They are identical"],
+      choices: ["51% teal for cream", "99% teal for cream", "They are identical"],
       answer: 1,
       explanation: "Correct. Cross-entropy strongly penalises being confidently wrong.",
     },
@@ -364,7 +365,7 @@ const chapterThreeSegments: CourseSegment[] = [
     body: "Its alternating quadrants defeat a purely linear classifier. A useful network must combine partial boundaries into a non-linear region.",
     why: "This tiny problem demonstrates why hidden layers and non-linear activations matter. Stacking linear operations alone would remain linear.",
     technical: "XOR is not linearly separable in its original two-dimensional space. A hidden layer can transform the representation before the output separates it.",
-    tryThis: "Look at the two disconnected purple regions and try to imagine one line separating both from cream.",
+    tryThis: "Look at the two disconnected teal regions and try to imagine one line separating both from cream.",
     bonusFact: "The historical XOR debate helped motivate multi-layer networks and effective training methods, although the broader history is more complex than one breakthrough.",
     target: "decision-map",
   },
@@ -536,11 +537,67 @@ const chapterFourSegments: CourseSegment[] = [
   },
 ];
 
+const chapterFiveSegments: CourseSegment[] = [
+  {
+    id: "workbench-map",
+    chapter: 5,
+    chapterTitle: "Building a network by hand",
+    eyebrow: "The open workbench",
+    title: "The bottom canvas exposes the individual parts",
+    body: "The comparison lab uses dense layers, where neighbouring layers are automatically fully connected. The Neural Workbench lets you place neurons and decide which individual connections should exist.",
+    why: "A freeform graph makes the architecture concrete. You can see that a network is not a mysterious block, but a collection of calculations joined by weighted paths.",
+    technical: "The workbench stores a directed graph of input, hidden and output nodes. Every connection has its own weight and every non-input node has a bias.",
+    tryThis: "Scroll around the workbench and identify the two inputs, three hidden neurons, output neuron and coloured weighted connections.",
+    bonusFact: "Dense networks are convenient, but sparse networks can use far fewer connections. Sparsity is an active topic in efficient machine learning.",
+    target: "workbench",
+  },
+  {
+    id: "workbench-editing",
+    chapter: 5,
+    chapterTitle: "Building a network by hand",
+    eyebrow: "Nodes and connections",
+    title: "You can change both the diagram and the calculation",
+    body: "Add inputs or hidden neurons, drag them into place, and use the connection tool to wire a source to a destination. Selecting a neuron or edge opens its editable properties.",
+    why: "Unlike the physics mode above, edits here are functional. Changing a weight, bias, activation or connection changes the result of the graph.",
+    technical: "Positive weights are shown in petrol and negative weights in rust. The editor rejects duplicate links, links into inputs and links that would create a cycle.",
+    tryThis: "Add one hidden neuron, connect it to the output and adjust the new connection's weight.",
+    bonusFact: "A negative weight does not mean a bad connection. It means the source activation pushes the target's weighted sum downward rather than upward.",
+    target: "workbench",
+  },
+  {
+    id: "workbench-training",
+    chapter: 5,
+    chapterTitle: "Building a network by hand",
+    eyebrow: "Run and train",
+    title: "Manual pulses and dataset training answer different questions",
+    body: "The input sliders show one forward pass. Test dataset measures the whole shared dataset, while Train 40 steps updates the graph's weights and biases using those labelled examples.",
+    why: "Inspecting one input helps explain a calculation. Dataset metrics help judge whether the same graph has learned a pattern that works across many examples.",
+    technical: "The workbench performs topological forward evaluation and reverse-mode backpropagation over its editable directed acyclic graph.",
+    tryThis: "Move the two input sliders, run a pulse, then train 40 steps and compare the loss and accuracy readout.",
+    bonusFact: "The graph's visual positions do not determine its computation. Connections determine the data flow; dragging a neuron changes only the diagram.",
+    target: "workbench",
+  },
+  {
+    id: "neural-jam",
+    chapter: 5,
+    chapterTitle: "Building a network by hand",
+    eyebrow: "Neural Jam",
+    title: "Sonification can reveal changing activation patterns",
+    body: "Neural Jam feeds a sequence of dataset samples through the graph. Hidden and output activations become short notes, so a changing pattern can be heard as well as seen.",
+    why: "The musical mode is playful, but it also demonstrates sonification: representing numerical behaviour through sound instead of relying only on a chart.",
+    technical: "Node identity selects notes from a minor-pentatonic scale. Activation magnitude controls volume, while stronger positive activity can raise a note by an octave.",
+    tryThis: "Finish the guide, click Play Neural Jam and then alter a weight or activation to hear how the sequence changes.",
+    bonusFact: "Sonification is used in accessibility, scientific monitoring and data exploration because the ear can notice temporal patterns that are easy to overlook visually.",
+    target: "workbench",
+  },
+];
+
 const courseSegments: CourseSegment[] = [
   ...chapterOneSegments,
   ...chapterTwoSegments,
   ...chapterThreeSegments,
   ...chapterFourSegments,
+  ...chapterFiveSegments,
 ];
 
 function applyLabelNoise(
@@ -602,9 +659,9 @@ function DecisionMap({
         const x = ((column + 0.5) / columns) * 2 - 1;
         const y = 1 - ((row + 0.5) / rows) * 2;
         const probability = forward(network, [x, y], activation).output;
-        const red = Math.round(241 - probability * 126);
-        const green = Math.round(220 - probability * 83);
-        const blue = Math.round(194 + probability * 48);
+        const red = Math.round(239 - probability * 197);
+        const green = Math.round(225 - probability * 113);
+        const blue = Math.round(207 - probability * 100);
         context.fillStyle = `rgb(${red}, ${green}, ${blue})`;
         context.fillRect(
           column * cellWidth,
@@ -615,7 +672,7 @@ function DecisionMap({
       }
     }
 
-    context.strokeStyle = "rgba(26, 34, 56, 0.18)";
+    context.strokeStyle = "rgba(24, 35, 33, 0.2)";
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(width / 2, 0);
@@ -629,9 +686,9 @@ function DecisionMap({
       const py = ((1 - sample.y) / 2) * height;
       context.beginPath();
       context.arc(px, py, 4.2, 0, Math.PI * 2);
-      context.fillStyle = sample.label === 1 ? "#4b2ea3" : "#fff8eb";
+      context.fillStyle = sample.label === 1 ? "#0f5f58" : "#fff8eb";
       context.fill();
-      context.strokeStyle = sample.label === 1 ? "#f3edff" : "#3c2f25";
+      context.strokeStyle = sample.label === 1 ? "#e1f0eb" : "#3c2f25";
       context.lineWidth = 1.5;
       context.stroke();
     });
@@ -692,7 +749,7 @@ function LossChart({ history }: { history: number[] }) {
       if (index === 0) context.moveTo(x, y);
       else context.lineTo(x, y);
     });
-    context.strokeStyle = "#4b2ea3";
+    context.strokeStyle = "#176b65";
     context.lineWidth = 3;
     context.lineJoin = "round";
     context.stroke();
@@ -746,7 +803,7 @@ function NetworkGraph({
 
     const draw = () => {
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.fillStyle = "#111827";
+      context.fillStyle = "#172522";
       context.fillRect(0, 0, canvas.width, canvas.height);
       for (let layer = 0; layer < layerSizes.length - 1; layer += 1) {
         const leftNodes = nodes.filter((node) => node.layer === layer);
@@ -756,7 +813,7 @@ function NetworkGraph({
             context.beginPath();
             context.moveTo(left.x, left.y);
             context.lineTo(right.x, right.y);
-            context.strokeStyle = "rgba(196, 181, 253, 0.18)";
+            context.strokeStyle = "rgba(194, 226, 215, 0.22)";
             context.lineWidth = 1;
             context.stroke();
           }),
@@ -767,10 +824,10 @@ function NetworkGraph({
         context.arc(node.x, node.y, 7, 0, Math.PI * 2);
         context.fillStyle =
           node.layer === 0
-            ? "#f2b84b"
+            ? "#d4a13a"
             : node.layer === layerSizes.length - 1
-              ? "#7dd3fc"
-              : "#a78bfa";
+              ? "#d97851"
+              : "#61b8ad";
         context.fill();
         context.strokeStyle = "rgba(255, 255, 255, 0.75)";
         context.lineWidth = 1;
@@ -1051,6 +1108,18 @@ function Experiment({
   };
 
   const architecture = architectureFromValue(config.architecture);
+  const architectureIsPreset = architectureOptions.some(
+    (option) => option.value === config.architecture,
+  );
+  const updateArchitectureLayers = (nextLayers: number[]) => {
+    updateConfig(
+      "architecture",
+      nextLayers
+        .map((size) => Math.max(1, Math.min(12, size)))
+        .slice(0, 4)
+        .join("-"),
+    );
+  };
   return (
     <article className={`experiment-card accent-${accent}`}>
       <header className="experiment-header">
@@ -1074,6 +1143,11 @@ function Experiment({
             value={config.architecture}
             onChange={(event) => updateConfig("architecture", event.target.value)}
           >
+            {!architectureIsPreset ? (
+              <option value={config.architecture}>
+                Custom · 2→{config.architecture.replaceAll("-", "→")}→1
+              </option>
+            ) : null}
             {architectureOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label} · 2→{option.value.replaceAll("-", "→")}→1
@@ -1108,6 +1182,66 @@ function Experiment({
           </select>
         </label>
       </div> : null}
+
+      {visibility.controls ? (
+        <div className="layer-editor" aria-label={`Edit Experiment ${label} hidden layers`}>
+          <div>
+            <span>Hidden layers</span>
+            <small>Neighbouring layers stay fully connected.</small>
+          </div>
+          <div className="layer-editor-controls">
+            {architecture.map((size, index) => (
+              <div className="layer-stepper" key={`${index}-${architecture.length}`}>
+                <button
+                  type="button"
+                  aria-label={`Remove one neuron from hidden layer ${index + 1}`}
+                  disabled={size <= 1}
+                  onClick={() =>
+                    updateArchitectureLayers(
+                      architecture.map((layerSize, layerIndex) =>
+                        layerIndex === index ? layerSize - 1 : layerSize,
+                      ),
+                    )
+                  }
+                >
+                  −
+                </button>
+                <span><b>{size}</b><small>L{index + 1}</small></span>
+                <button
+                  type="button"
+                  aria-label={`Add one neuron to hidden layer ${index + 1}`}
+                  disabled={size >= 12}
+                  onClick={() =>
+                    updateArchitectureLayers(
+                      architecture.map((layerSize, layerIndex) =>
+                        layerIndex === index ? layerSize + 1 : layerSize,
+                      ),
+                    )
+                  }
+                >
+                  +
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="layer-action"
+              disabled={architecture.length >= 4}
+              onClick={() => updateArchitectureLayers([...architecture, 3])}
+            >
+              + layer
+            </button>
+            <button
+              type="button"
+              className="layer-action"
+              disabled={architecture.length <= 1}
+              onClick={() => updateArchitectureLayers(architecture.slice(0, -1))}
+            >
+              − layer
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {visibility.metrics ? <div
         className="metrics"
@@ -1567,8 +1701,8 @@ export default function Home() {
             aria-controls="guide-menu"
             onClick={() => setGuideMenuOpen((open) => !open)}
           >
-            <span className="guide-spark" aria-hidden="true">✦</span>
-            <span>Hi! Feeling lost? Click me and I&apos;ll be your guide!</span>
+            <span className="guide-spark" aria-hidden="true">?</span>
+            <span>Need a hand?</span>
             <span className="guide-chevron" aria-hidden="true">
               {guideMenuOpen ? "⌃" : "⌄"}
             </span>
@@ -1579,7 +1713,7 @@ export default function Home() {
               <div className="guide-menu-actions">
                 <button type="button" onClick={() => beginTutorial(0)}>
                   <span aria-hidden="true">▶</span>
-                  <span><strong>{tutorialActive ? "Restart complete tutorial" : "Start complete tutorial"}</strong><small>Four chapters · no prior knowledge needed</small></span>
+                  <span><strong>{tutorialActive ? "Restart complete tutorial" : "Start complete tutorial"}</strong><small>Five chapters · no prior knowledge needed</small></span>
                 </button>
                 <button
                   type="button"
@@ -1610,7 +1744,7 @@ export default function Home() {
 
               {showTutorialSegments ? (
                 <div className="tutorial-segment-list">
-                  {([1, 2, 3, 4] as const).map((chapter) => {
+                  {([1, 2, 3, 4, 5] as const).map((chapter) => {
                     const chapterSegments = courseSegments.filter(
                       (segment) => segment.chapter === chapter,
                     );
@@ -1648,12 +1782,12 @@ export default function Home() {
       </div>
       <section className="hero">
         <div className="hero-copy">
-          <p className="kicker"><span /> Interactive machine-learning sandbox</p>
-          <h1>Neural Network<br /><em>Visual Lab</em></h1>
+          <p className="kicker"><span /> A small machine-learning workbench</p>
+          <h1>Neural Network <em>Visual Lab</em></h1>
           <p className="hero-intro">
-            Build two small classifiers, train them on the same reproducible dataset,
-            and watch their decisions change. Every control affects a real network
-            running in your browser.
+            See what a small neural network learns, one training step at a time.
+            Change the data, architecture, activation or learning rate, then compare
+            the decision boundaries yourself.
           </p>
         </div>
         <aside className="try-card">
@@ -1661,7 +1795,7 @@ export default function Home() {
           <div>
             <p className="eyebrow">New to neural networks?</p>
             <h2>Learn from labelled dots to controlled experiments.</h2>
-            <p>Four progressive chapters with plain explanations, optional technical depth and real actions.</p>
+            <p>Five progressive chapters with plain explanations, optional technical depth and real actions.</p>
             <button type="button" className="hero-tutorial-button" onClick={() => beginTutorial(0)}>
               Start complete tutorial
             </button>
@@ -1870,6 +2004,11 @@ export default function Home() {
         </div>
       </section>
 
+      <NeuralWorkbench
+        samples={dataset}
+        guideActive={activeGuideTarget === "workbench"}
+      />
+
       {tutorialActive ? (
         <div className="tutorial-panel-wrap">
           <div className="tutorial-side-actions" aria-label="Tutorial shortcuts">
@@ -2035,8 +2174,8 @@ export default function Home() {
       ) : null}
 
       <footer>
-        <p>Neural Network Visual Lab</p>
-        <p>Deterministic datasets · in-browser training · no prepared results</p>
+        <p>Built by Writban Alim · Neural Network Visual Lab</p>
+        <p>Everything trains in your browser · no prepared results</p>
       </footer>
     </main>
   );

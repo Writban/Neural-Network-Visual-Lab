@@ -9,18 +9,22 @@ in the browser and redraws their decision boundaries as their weights change.
 - compares two independently configured neural networks side by side;
 - switches between XOR, nested-circle, and interleaving-moon datasets;
 - reproduces datasets and initial weights from numeric seeds;
-- adjusts hidden-layer architecture, activation function, and learning rate;
+- edits hidden-layer architecture neuron by neuron, alongside activation
+  function and learning rate controls;
 - displays live binary cross-entropy loss, training accuracy, clean test
   accuracy, and decision boundaries;
 - lets users click a decision map to inspect an individual prediction;
-- includes a 29-part, four-chapter guided course that progressively reveals the
+- includes a 33-part, five-chapter guided course that progressively reveals the
   lab, checks understanding, and responds to real learner interactions;
 - offers dismissible, segment-specific bonus facts with a saved on/off
   preference for learners who want additional technical depth;
 - adds controllable label noise, three ready-made experiment challenges, and
   separate seeded training and test datasets;
-- maps prediction probability to sound through the Web Audio API; and
-- adds draggable, spring-based physics to the network node graph.
+- maps prediction probability to sound through the Web Audio API;
+- adds draggable, spring-based physics to the network node graph; and
+- includes a freeform Neural Workbench for adding, moving and deleting nodes,
+  drawing individual connections, editing weights and biases, training the
+  resulting graph and turning its activations into a musical sequence.
 
 ## Implementation
 
@@ -35,6 +39,10 @@ loss, backpropagation, architecture, generalisation and controlled comparison.
 Learners can open plain-language, purpose and technical layers separately, and
 action segments use their actual clicks, training results and configuration
 changes as feedback.
+
+`app/neural-workbench.tsx` contains a second graph-based implementation for the
+open editor. It validates the directed graph, evaluates it in topological order
+and performs backpropagation over the connections the learner has drawn.
 
 The output layer always uses a sigmoid because the lab performs binary
 classification. Hidden layers can use tanh, ReLU, or sigmoid activations.
@@ -62,7 +70,7 @@ The repository includes `.github/workflows/deploy-pages.yml`. Every push to
 `main` builds the browser-only version and publishes `dist-github` through
 GitHub Pages. The deployment automatically detects the repository name, so it
 works both as a project site such as
-`https://writban.github.io/neural-network-visual-lab/` and as an account site
+`https://writban.github.io/Neural-Network-Visual-Lab/` and as an account site
 such as `https://writban.github.io/`.
 
 After the first push, open **Settings → Pages** in GitHub and set **Source** to
@@ -73,6 +81,7 @@ deployment run and its resulting URL.
 
 - `app/neural-core.ts`: datasets, model initialisation, inference, metrics, and training
 - `app/page.tsx`: experiment state, controls, canvas visualisations, audio, and physics
+- `app/neural-workbench.tsx`: editable graph, graph training, testing, and Neural Jam
 - `app/globals.css`: responsive visual system and component styling
 - `github-main.tsx`: static React entry point used by GitHub Pages
 - `vite.github.config.ts`: repository-aware static build configuration
@@ -86,6 +95,9 @@ deployment run and its resulting URL.
   comparisons instead of treating training as a single prepared demonstration.
 - **Canvas visualisation:** dense decision surfaces and live loss curves are
   cheaper to redraw on canvas than as hundreds of DOM elements.
+- **Editable graph:** the lower workbench uses a directed acyclic graph so
+  learners can change individual connections without creating an untrainable
+  circular network.
 - **No back end:** the datasets are synthetic and the experiments are local, so
   a server would add complexity without improving the learning experience.
 

@@ -18,10 +18,17 @@ export const architectureOptions = [
 ] as const;
 
 export function architectureFromValue(value: string): number[] {
-  return (
-    architectureOptions.find((option) => option.value === value)?.layers ??
-    architectureOptions[1].layers
-  ).slice();
+  const preset = architectureOptions.find((option) => option.value === value);
+  if (preset) return preset.layers.slice();
+
+  const customLayers = value
+    .split("-")
+    .map((size) => Number.parseInt(size, 10))
+    .filter((size) => Number.isFinite(size) && size >= 1 && size <= 12)
+    .slice(0, 4);
+  return customLayers.length > 0
+    ? customLayers
+    : architectureOptions[1].layers.slice();
 }
 
 export function createRng(seed: number): () => number {
@@ -243,4 +250,3 @@ export function trainEpoch(
   });
   return evaluate(network, samples, activation);
 }
-
