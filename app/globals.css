@@ -69,6 +69,7 @@ main { min-height: 100vh; }
   font-size: 1rem;
 }
 .guide-chevron { margin-left: auto; color: #dcd3fa; }
+.guide-label-short { display: none; }
 .guide-menu {
   position: absolute;
   top: calc(100% + 0.65rem);
@@ -660,7 +661,7 @@ select, input {
 }
 .decision-canvas { aspect-ratio: 52 / 35; cursor: crosshair; }
 .loss-canvas { aspect-ratio: 26 / 5; }
-.network-canvas { aspect-ratio: 52 / 17; cursor: grab; touch-action: none; }
+.network-canvas { aspect-ratio: 52 / 17; cursor: grab; touch-action: pan-y; }
 .network-canvas:active { cursor: grabbing; }
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: 0.6rem; color: var(--muted); font-size: 0.7rem; }
 .legend span { display: flex; align-items: center; gap: 0.35rem; }
@@ -1121,7 +1122,7 @@ input { border-radius: 0.35rem; }
     inset 0 0 0 1px rgba(92, 58, 27, 0.09),
     inset 0 18px 44px rgba(92, 58, 27, 0.085);
 }
-.workbench-canvas { display: block; width: 100%; height: 100%; min-height: 660px; touch-action: none; user-select: none; }
+.workbench-canvas { display: block; width: 100%; height: 100%; min-height: 660px; touch-action: pan-y; user-select: none; }
 .bench-column-label,
 .edge-weight-label,
 .node-value {
@@ -1147,7 +1148,7 @@ input { border-radius: 0.35rem; }
 }
 .workbench-canvas.string-mode { cursor: crosshair; }
 .workbench-canvas.string-mode .work-edge { cursor: crosshair; }
-.work-node { cursor: grab; }
+.work-node { cursor: grab; touch-action: none; }
 .work-node:active { cursor: grabbing; }
 .work-node circle { stroke: #20322e; stroke-width: 2; transition: r 160ms ease, filter 160ms ease; }
 .work-node:hover circle,
@@ -1255,6 +1256,8 @@ input { border-radius: 0.35rem; }
 .string-help-bubble > button { position: absolute; top: 0.35rem; right: 0.45rem; border: 0; background: transparent; color: var(--muted); font-size: 1rem; }
 .string-help-bubble strong { display: block; padding-right: 1.5rem; font-size: 0.84rem; }
 .string-help-bubble p { margin: 0.45rem 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.5; }
+.mobile-string-help,
+.mobile-string-details { display: none; }
 @keyframes string-help-in {
   from { opacity: 0; transform: translateY(0.6rem); }
   to { opacity: 1; transform: translateY(0); }
@@ -1286,6 +1289,10 @@ input { border-radius: 0.35rem; }
   .guide-launch-button,
   .guide-menu-actions > button,
   .bonus-fact-toggle { min-height: 44px; }
+  .guide-launch-button { gap: 0.42rem; padding: 0.42rem 0.58rem; }
+  .guide-spark { width: 1.55rem; height: 1.55rem; flex-basis: 1.55rem; }
+  .guide-label-long { display: none; }
+  .guide-label-short { display: inline; }
   .hero {
     gap: 2rem;
     padding: 5rem 0.85rem 2.75rem;
@@ -1413,16 +1420,39 @@ input { border-radius: 0.35rem; }
   .workbench-canvas-wrap { overflow: hidden; }
   .workbench-inspector { grid-template-columns: 1fr; }
   .workbench-inspector section { border-right: 0; border-bottom: 1px solid #b8b7ad; }
+  .workbench-inspector .selection-inspector { order: -1; }
   .workbench-inspector input[type="range"] { min-height: 44px; }
+  .edge-tone-picker > div { flex-wrap: wrap; }
   .edge-tone-picker button { width: 44px; height: 44px; }
-  .bored-note { right: 0.75rem; bottom: 0.75rem; width: min(210px, calc(100% - 1.5rem)); }
-  .string-help-bubble {
-    right: 0.75rem;
-    bottom: 0.75rem;
-    width: calc(100% - 1.5rem);
-    max-height: calc(100% - 1.5rem);
-    overflow-y: auto;
+  .bored-note {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: auto;
+    margin: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    transform: none;
+    animation: none;
   }
+  .bored-note .bored-unlock { width: 100%; min-height: 44px; font-size: 0.95rem; }
+  .string-help-bubble {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: auto;
+    max-height: none;
+    margin: 0.65rem;
+    overflow: visible;
+    padding: 0.75rem 0.85rem;
+    box-shadow: 3px 4px 0 rgba(24, 35, 33, 0.15);
+    animation: none;
+  }
+  .string-help-bubble::after { display: none; }
+  .desktop-string-help { display: none; }
+  .mobile-string-help { display: block; }
+  .mobile-string-details { display: block; margin-top: 0.65rem; border-top: 1px solid #cfcec5; padding-top: 0.55rem; }
+  .mobile-string-details summary { color: #145c56; cursor: pointer; font-size: 0.7rem; font-weight: 820; }
+  .mobile-string-details p { font-size: 0.68rem; }
 }
 
 @media (pointer: coarse) {

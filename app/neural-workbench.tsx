@@ -325,6 +325,7 @@ export default function NeuralWorkbench({
     struckIds: string[];
   }>({ active: false, pointerId: null, lastPoint: null, struckIds: [] });
   const lastStruckRef = useRef<Record<string, number>>({});
+  const boredPromptShownRef = useRef(false);
   const [nodes, setNodes] = useState<WorkNode[]>(starterNodes);
   const [edges, setEdges] = useState<WorkEdge[]>(starterEdges);
   const [selection, setSelection] = useState<Selection>(null);
@@ -339,7 +340,6 @@ export default function NeuralWorkbench({
   const [pulse, setPulse] = useState(0);
   const [status, setStatus] = useState("Ready for a manual pulse.");
   const [instrumentUnlocked, setInstrumentUnlocked] = useState(false);
-  const [colourEditing, setColourEditing] = useState(false);
   const [showBoredPrompt, setShowBoredPrompt] = useState(false);
   const [showStringHelp, setShowStringHelp] = useState(false);
   const [struckEdges, setStruckEdges] = useState<string[]>([]);
@@ -613,7 +613,6 @@ export default function NeuralWorkbench({
     setSelection(null);
     setConnectFrom(null);
     setConnectMode(false);
-    setColourEditing(false);
     setStatus("Starter network restored.");
   };
 
@@ -658,8 +657,8 @@ export default function NeuralWorkbench({
     if (audioRef.current?.state === "suspended") await audioRef.current.resume();
     setInstrumentUnlocked(true);
     setShowBoredPrompt(false);
-    window.sessionStorage.setItem("nnvl-bored-prompt", "used");
-    setStatus("String mode unlocked. Hold the pointer down and drag across the connections.");
+    boredPromptShownRef.current = true;
+    setStatus("String mode unlocked. Drag across connections to play them, or select one to change its colour and tone.");
   };
 
   useEffect(() => {
@@ -677,16 +676,16 @@ export default function NeuralWorkbench({
         if (timer) clearTimeout(timer);
         if (
           entry.isIntersecting &&
-          entry.intersectionRatio >= 0.45 &&
-          window.sessionStorage.getItem("nnvl-bored-prompt") !== "used"
+          entry.intersectionRatio >= 0.12 &&
+          !boredPromptShownRef.current
         ) {
           timer = setTimeout(() => {
             setShowBoredPrompt(true);
-            window.sessionStorage.setItem("nnvl-bored-prompt", "used");
-          }, 8000);
+            boredPromptShownRef.current = true;
+          }, 6000);
         }
       },
-      { threshold: [0.45] },
+      { threshold: [0.12] },
     );
     observer.observe(section);
     return () => {
@@ -753,22 +752,6 @@ export default function NeuralWorkbench({
           <button type="button" onClick={testDataset}>Test dataset</button>
           <button type="button" onClick={() => evaluateCurrent()}>Run pulse</button>
           <button type="button" onClick={resetGraph}>Reset bench</button>
-          {instrumentUnlocked ? (
-            <button
-              type="button"
-              className={colourEditing ? "active" : undefined}
-              onClick={() => {
-                setColourEditing((value) => !value);
-                setStatus(
-                  colourEditing
-                    ? "String colour editor closed."
-                    : "Colour editor ready. Select a connection, then choose its tone.",
-                );
-              }}
-            >
-              {colourEditing ? "Close colours" : "Edit edge colours"}
-            </button>
-          ) : null}
         </div>
 
         <div className="workbench-body">
@@ -910,7 +893,15 @@ export default function NeuralWorkbench({
 
             {showBoredPrompt ? (
               <div className="bored-note">
-                <button type="button" className="bored-dismiss" aria-label="Dismiss suggestion" onClick={() => setShowBoredPrompt(false)}>×</button>
+                <button
+                  type="button"
+                  className="bored-dismiss"
+                  aria-label="Dismiss suggestion"
+                  onClick={() => {
+                    boredPromptShownRef.current = true;
+                    setShowBoredPrompt(false);
+                  }}
+                >×</button>
                 <button type="button" className="bored-unlock" onClick={() => void unlockStrings()}>
                   Feeling bored? Click here.
                 </button>
@@ -921,9 +912,16 @@ export default function NeuralWorkbench({
               <aside className="string-help-bubble" role="status">
                 <button type="button" aria-label="Dismiss string instructions" onClick={() => setShowStringHelp(false)}>×</button>
                 <strong>The connections are strings now.</strong>
-                <p>
+                <p className="desktop-string-help">
                   Hold the pointer down and drag across them. Crossing several in one stroke plays them all, and faster strokes sound stronger. Connection length works like string length: a shorter edge vibrates faster and plays a higher note, while a longer edge vibrates more slowly and plays a lower note. Drag either neuron at the end of an edge to change its length and retune it. Use “Edit edge colours” to change its note and timbre further.
                 </p>
+                <p className="mobile-string-help">
+                  Drag sideways across the lines to play them. Faster swipes sound stronger. Select a line below the canvas to change its colour and tone.
+                </p>
+                <details className="mobile-string-details">
+                  <summary>How does pitch work?</summary>
+                  <p>Shorter connections play higher notes and longer connections play lower notes. Drag a connected neuron to retune its line.</p>
+                </details>
               </aside>
             ) : null}
           </div>
@@ -1025,7 +1023,7 @@ export default function NeuralWorkbench({
                       }
                     />
                   </label>
-                  {instrumentUnlocked && colourEditing ? (
+                  {instrumentUnlocked ? (
                     <fieldset className="edge-tone-picker">
                       <legend>String colour and tone</legend>
                       <div>
@@ -1068,8 +1066,6 @@ export default function NeuralWorkbench({
                       </div>
                       <small>Colour changes the note, waveform and timbre. Choosing a colour plays a preview. Weight remains part of the neural calculation.</small>
                     </fieldset>
-                  ) : instrumentUnlocked ? (
-                    <small>Use “Edit edge colours” above to change this string’s tone.</small>
                   ) : (
                     <small>Line width reflects the connection’s absolute weight.</small>
                   )}

@@ -1611,7 +1611,8 @@ export default function Home() {
             onClick={() => setGuideMenuOpen((open) => !open)}
           >
             <span className="guide-spark" aria-hidden="true">?</span>
-            <span>Need a hand?</span>
+            <span className="guide-label-long">Need a hand?</span>
+            <span className="guide-label-short">Guide</span>
             <span className="guide-chevron" aria-hidden="true">
               {guideMenuOpen ? "⌃" : "⌄"}
             </span>
