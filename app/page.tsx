@@ -529,11 +529,11 @@ const chapterFourSegments: CourseSegment[] = [
     title: "You now have the complete experimental loop",
     body: "Choose data, introduce noise, configure networks, inspect predictions, train in steps, compare clean test performance and explore alternate representations.",
     why: "The lab is most useful when you form a question before moving controls, predict what will happen, run a controlled test and explain the evidence.",
-    technical: "Models, backpropagation, metrics and seeded data all run locally in TypeScript. Sound and node physics change exploration, not training.",
-    tryThis: "Enable Sonify predictions or Node physics. Finish the guide, then choose a challenge or design your own experiment.",
-    bonusFact: "Sonification maps probability to pitch. Physics changes only graph layout; dragging a node never changes a weight.",
+    technical: "Models, backpropagation, metrics and seeded data all run locally in TypeScript. Node physics changes exploration, not training.",
+    tryThis: "Enable Node physics. Finish the guide, then choose a challenge or design your own experiment.",
+    bonusFact: "Physics changes only graph layout; dragging a node never changes a weight.",
     target: "modes",
-    action: { type: "enable-mode", prompt: "Enable Sonify predictions or Node physics." },
+    action: { type: "enable-mode", prompt: "Enable Node physics." },
   },
 ];
 
@@ -577,19 +577,6 @@ const chapterFiveSegments: CourseSegment[] = [
     bonusFact: "The graph's visual positions do not determine its computation. Connections determine the data flow; dragging a neuron changes only the diagram.",
     target: "workbench",
   },
-  {
-    id: "neural-jam",
-    chapter: 5,
-    chapterTitle: "Building a network by hand",
-    eyebrow: "Neural Jam",
-    title: "Sonification can reveal changing activation patterns",
-    body: "Neural Jam feeds a sequence of dataset samples through the graph. Hidden and output activations become short notes, so a changing pattern can be heard as well as seen.",
-    why: "The musical mode is playful, but it also demonstrates sonification: representing numerical behaviour through sound instead of relying only on a chart.",
-    technical: "Node identity selects notes from a minor-pentatonic scale. Activation magnitude controls volume, while stronger positive activity can raise a note by an octave.",
-    tryThis: "Finish the guide, click Play Neural Jam and then alter a weight or activation to hear how the sequence changes.",
-    bonusFact: "Sonification is used in accessibility, scientific monitoring and data exploration because the ear can notice temporal patterns that are easy to overlook visually.",
-    target: "workbench",
-  },
 ];
 
 const courseSegments: CourseSegment[] = [
@@ -621,7 +608,6 @@ function DecisionMap({
   revision,
   probe,
   onProbe,
-  onSound,
 }: {
   network: NeuralNetwork;
   activation: ActivationName;
@@ -629,7 +615,6 @@ function DecisionMap({
   revision: number;
   probe: Probe | null;
   onProbe: (probe: Probe) => void;
-  onSound: (probability: number | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -716,8 +701,6 @@ function DecisionMap({
       className="decision-canvas"
       aria-label="Interactive neural-network decision map. Click to inspect a prediction."
       onClick={(event) => onProbe(pointFromEvent(event))}
-      onPointerMove={(event) => onSound(pointFromEvent(event).probability)}
-      onPointerLeave={() => onSound(null)}
     />
   );
 }
@@ -930,7 +913,6 @@ function Experiment({
   testDataset,
   seed,
   physics,
-  onSound,
   guideTarget,
   visibility,
   onTutorialAction,
@@ -942,7 +924,6 @@ function Experiment({
   testDataset: Sample[];
   seed: number;
   physics: boolean;
-  onSound: (probability: number | null) => void;
   guideTarget: string | null;
   visibility: TutorialVisibility;
   onTutorialAction: (event: TutorialEvent) => void;
@@ -1290,7 +1271,6 @@ function Experiment({
               feedback: `At that coordinate, Experiment ${label} predicts ${Math.round(nextProbe.probability * 100)}% probability of Class 1.`,
             });
           }}
-          onSound={onSound}
         />
         <div className="legend" aria-hidden="true">
           <span><i className="class-zero" />Class 0</span>
@@ -1341,7 +1321,6 @@ export default function Home() {
   const [experimentConfigs, setExperimentConfigs] =
     useState<[ExperimentConfig, ExperimentConfig]>(initialConfigs);
   const [physics, setPhysics] = useState(false);
-  const [sonification, setSonification] = useState(false);
   const [guideMenuOpen, setGuideMenuOpen] = useState(false);
   const [showTutorialSegments, setShowTutorialSegments] = useState(false);
   const [tutorialActive, setTutorialActive] = useState(false);
@@ -1360,11 +1339,6 @@ export default function Home() {
   const guideMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recentBonusDismissals = useRef<number[]>([]);
   const trainedTutorialExperiments = useRef<Set<"A" | "B">>(new Set());
-  const audioRef = useRef<{
-    context: AudioContext;
-    oscillator: OscillatorNode;
-    gain: GainNode;
-  } | null>(null);
   const baseDataset = useMemo(
     () => generateDataset(datasetKind, seed, sampleCount),
     [datasetKind, sampleCount, seed],
@@ -1403,15 +1377,6 @@ export default function Home() {
     if (guideMessageTimer.current) clearTimeout(guideMessageTimer.current);
     setGuideMessage(message);
     guideMessageTimer.current = setTimeout(() => setGuideMessage(null), 2400);
-  }, []);
-
-  const silenceAudio = useCallback(() => {
-    if (!audioRef.current) return;
-    audioRef.current.gain.gain.setTargetAtTime(
-      0,
-      audioRef.current.context.currentTime,
-      0.02,
-    );
   }, []);
 
   const setBonusFactPreference = (enabled: boolean) => {
@@ -1519,8 +1484,6 @@ export default function Home() {
     setNoisePercent(0);
     setExperimentConfigs(initialConfigs);
     setPhysics(false);
-    setSonification(false);
-    silenceAudio();
     setTutorialRun((run) => run + 1);
     setSeenSegments([]);
     prepareTutorialSegment(index);
@@ -1571,8 +1534,6 @@ export default function Home() {
   ) => {
     setTutorialActive(false);
     setPhysics(false);
-    setSonification(false);
-    silenceAudio();
     if (kind === "minimal-xor") {
       setDatasetKind("xor");
       setNoisePercent(0);
@@ -1600,57 +1561,6 @@ export default function Home() {
       .querySelector(".lab-shell")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-
-  const toggleSonification = () => {
-    if (!sonification && !audioRef.current) {
-      const AudioContextClass =
-        window.AudioContext ??
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
-      if (AudioContextClass) {
-        const context = new AudioContextClass();
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.value = 220;
-        gain.gain.value = 0;
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start();
-        audioRef.current = { context, oscillator, gain };
-      }
-    }
-    const next = !sonification;
-    setSonification(next);
-    if (next) {
-      handleTutorialAction({
-        type: "enable-mode",
-        feedback: "Sonification is enabled. Moving across a decision map now maps probability to pitch.",
-      });
-    }
-    if (!next && audioRef.current) {
-      audioRef.current.gain.gain.setTargetAtTime(
-        0,
-        audioRef.current.context.currentTime,
-        0.02,
-      );
-    }
-  };
-
-  const handleSound = useCallback(
-    (probability: number | null) => {
-      const audio = audioRef.current;
-      if (!sonification || !audio) return;
-      const now = audio.context.currentTime;
-      if (probability === null) {
-        audio.gain.gain.setTargetAtTime(0, now, 0.025);
-        return;
-      }
-      audio.oscillator.frequency.setTargetAtTime(170 + probability * 720, now, 0.02);
-      audio.gain.gain.setTargetAtTime(0.035, now, 0.025);
-    },
-    [sonification],
-  );
 
   useEffect(() => {
     const preferenceTimer = setTimeout(() => {
@@ -1682,10 +1592,6 @@ export default function Home() {
   useEffect(
     () => () => {
       if (guideMessageTimer.current) clearTimeout(guideMessageTimer.current);
-      if (audioRef.current) {
-        audioRef.current.oscillator.stop();
-        void audioRef.current.context.close();
-      }
     },
     [],
   );
@@ -1888,17 +1794,9 @@ export default function Home() {
         >
           <div>
             <p className="eyebrow">Experimental modes</p>
-            <p>Make the hidden activity tangible after the core comparison.</p>
+            <p>Let the diagram move without changing the trained model.</p>
           </div>
           <div className="mode-buttons">
-            <button
-              className={sonification ? "mode-button active" : "mode-button"}
-              onClick={toggleSonification}
-              aria-pressed={sonification}
-            >
-              <span className="sound-icon" aria-hidden="true">)))</span>
-              Sonify predictions
-            </button>
             <button
               className={physics ? "mode-button active" : "mode-button"}
               onClick={() => {
@@ -1933,7 +1831,6 @@ export default function Home() {
             testDataset={testDataset}
             seed={seed}
             physics={physics}
-            onSound={handleSound}
             guideTarget={activeGuideTarget}
             visibility={tutorialVisibility}
             onTutorialAction={handleTutorialAction}
@@ -1947,7 +1844,6 @@ export default function Home() {
             testDataset={testDataset}
             seed={seed}
             physics={physics}
-            onSound={handleSound}
             guideTarget={null}
             visibility={tutorialVisibility}
             onTutorialAction={handleTutorialAction}

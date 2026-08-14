@@ -14,17 +14,19 @@ in the browser and redraws their decision boundaries as their weights change.
 - displays live binary cross-entropy loss, training accuracy, clean test
   accuracy, and decision boundaries;
 - lets users click a decision map to inspect an individual prediction;
-- includes a 33-part, five-chapter guided course that progressively reveals the
+- includes a 32-part, five-chapter guided course that progressively reveals the
   lab, checks understanding, and responds to real learner interactions;
 - offers dismissible, segment-specific bonus facts with a saved on/off
   preference for learners who want additional technical depth;
 - adds controllable label noise, three ready-made experiment challenges, and
   separate seeded training and test datasets;
-- maps prediction probability to sound through the Web Audio API;
 - adds draggable, spring-based physics to the network node graph; and
 - includes a freeform Neural Workbench for adding, moving and deleting nodes,
   drawing individual connections, editing weights and biases, training the
-  resulting graph and turning its activations into a musical sequence.
+  resulting graph and testing it against the shared dataset. A delayed,
+  optional string mode lets a learner drag across connections to play them:
+  edge colour changes note and timbre, shorter edges play higher pitches,
+  longer edges play lower pitches, and stroke speed changes strength.
 
 ## Implementation
 
@@ -80,8 +82,8 @@ deployment run and its resulting URL.
 ## Project structure
 
 - `app/neural-core.ts`: datasets, model initialisation, inference, metrics, and training
-- `app/page.tsx`: experiment state, controls, canvas visualisations, audio, and physics
-- `app/neural-workbench.tsx`: editable graph, graph training, testing, and Neural Jam
+- `app/page.tsx`: experiment state, controls, canvas visualisations, and physics
+- `app/neural-workbench.tsx`: editable graph, graph training, testing, and the hidden connection-string instrument
 - `app/globals.css`: responsive visual system and component styling
 - `github-main.tsx`: static React entry point used by GitHub Pages
 - `vite.github.config.ts`: repository-aware static build configuration

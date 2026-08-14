@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Neural Network Visual Lab",
   description:
-    "Train and compare small neural networks through live decision maps, loss curves, prediction probes, sonification, and node physics.",
+    "Train and compare small neural networks through live decision maps, loss curves, prediction probes, editable graphs, and node physics.",
   other: {
     "codex-preview": "development",
   },

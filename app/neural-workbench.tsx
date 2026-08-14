@@ -27,7 +27,25 @@ type WorkEdge = {
   from: string;
   to: string;
   weight: number;
+  color: string;
 };
+
+type CanvasPoint = { x: number; y: number; time?: number };
+
+const edgeTones: Array<{
+  color: string;
+  name: string;
+  description: string;
+  waveform: OscillatorType;
+  filterFrequency: number;
+  pitchRatio: number;
+}> = [
+  { color: "#176b65", name: "Petrol", description: "clean", waveform: "sine", filterFrequency: 5200, pitchRatio: 1 },
+  { color: "#b65a3a", name: "Rust", description: "bright", waveform: "sawtooth", filterFrequency: 4400, pitchRatio: 1.122 },
+  { color: "#d4a13a", name: "Mustard", description: "soft", waveform: "triangle", filterFrequency: 3800, pitchRatio: 1.26 },
+  { color: "#60727a", name: "Slate", description: "hollow", waveform: "square", filterFrequency: 3200, pitchRatio: 1.335 },
+  { color: "#715b83", name: "Plum", description: "muted", waveform: "triangle", filterFrequency: 2600, pitchRatio: 1.498 },
+];
 
 type GraphPass = {
   valid: boolean;
@@ -51,16 +69,37 @@ const starterNodes: WorkNode[] = [
 ];
 
 const starterEdges: WorkEdge[] = [
-  { id: "e-1", from: "input-x", to: "hidden-1", weight: 0.8 },
-  { id: "e-2", from: "input-x", to: "hidden-2", weight: -0.65 },
-  { id: "e-3", from: "input-x", to: "hidden-3", weight: 0.4 },
-  { id: "e-4", from: "input-y", to: "hidden-1", weight: -0.5 },
-  { id: "e-5", from: "input-y", to: "hidden-2", weight: 0.9 },
-  { id: "e-6", from: "input-y", to: "hidden-3", weight: 0.55 },
-  { id: "e-7", from: "hidden-1", to: "output", weight: 0.75 },
-  { id: "e-8", from: "hidden-2", to: "output", weight: -0.8 },
-  { id: "e-9", from: "hidden-3", to: "output", weight: 0.65 },
+  { id: "e-1", from: "input-x", to: "hidden-1", weight: 0.8, color: "#176b65" },
+  { id: "e-2", from: "input-x", to: "hidden-2", weight: -0.65, color: "#b65a3a" },
+  { id: "e-3", from: "input-x", to: "hidden-3", weight: 0.4, color: "#176b65" },
+  { id: "e-4", from: "input-y", to: "hidden-1", weight: -0.5, color: "#b65a3a" },
+  { id: "e-5", from: "input-y", to: "hidden-2", weight: 0.9, color: "#176b65" },
+  { id: "e-6", from: "input-y", to: "hidden-3", weight: 0.55, color: "#176b65" },
+  { id: "e-7", from: "hidden-1", to: "output", weight: 0.75, color: "#176b65" },
+  { id: "e-8", from: "hidden-2", to: "output", weight: -0.8, color: "#b65a3a" },
+  { id: "e-9", from: "hidden-3", to: "output", weight: 0.65, color: "#176b65" },
 ];
+
+function segmentsCross(
+  cursorStart: CanvasPoint,
+  cursorEnd: CanvasPoint,
+  edgeStart: CanvasPoint,
+  edgeEnd: CanvasPoint,
+) {
+  const cross = (first: CanvasPoint, second: CanvasPoint, third: CanvasPoint) =>
+    (second.x - first.x) * (third.y - first.y) -
+    (second.y - first.y) * (third.x - first.x);
+  const firstSide = cross(cursorStart, cursorEnd, edgeStart);
+  const secondSide = cross(cursorStart, cursorEnd, edgeEnd);
+  const thirdSide = cross(edgeStart, edgeEnd, cursorStart);
+  const fourthSide = cross(edgeStart, edgeEnd, cursorEnd);
+  const boundsOverlap =
+    Math.max(Math.min(cursorStart.x, cursorEnd.x), Math.min(edgeStart.x, edgeEnd.x)) <=
+      Math.min(Math.max(cursorStart.x, cursorEnd.x), Math.max(edgeStart.x, edgeEnd.x)) &&
+    Math.max(Math.min(cursorStart.y, cursorEnd.y), Math.min(edgeStart.y, edgeEnd.y)) <=
+      Math.min(Math.max(cursorStart.y, cursorEnd.y), Math.max(edgeStart.y, edgeEnd.y));
+  return boundsOverlap && firstSide * secondSide <= 0 && thirdSide * fourthSide <= 0;
+}
 
 function activate(value: number, activation: ActivationName) {
   if (activation === "relu") return Math.max(0, value);
@@ -170,7 +209,7 @@ function graphMetrics(nodes: WorkNode[], edges: WorkEdge[], samples: Sample[]) {
 
 function createsCycle(edges: WorkEdge[], from: string, to: string) {
   const outgoing = new Map<string, string[]>();
-  [...edges, { id: "candidate", from, to, weight: 0 }].forEach((edge) => {
+  [...edges, { id: "candidate", from, to, weight: 0, color: "#176b65" }].forEach((edge) => {
     outgoing.set(edge.from, [...(outgoing.get(edge.from) ?? []), edge.to]);
   });
   const stack = [to];
@@ -265,8 +304,15 @@ export default function NeuralWorkbench({
   const sectionRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const audioRef = useRef<AudioContext | null>(null);
-  const jamIndexRef = useRef(0);
+  const audioOutputRef = useRef<AudioNode | null>(null);
   const idRef = useRef(20);
+  const strumRef = useRef<{
+    active: boolean;
+    pointerId: number | null;
+    lastPoint: CanvasPoint | null;
+    struckIds: string[];
+  }>({ active: false, pointerId: null, lastPoint: null, struckIds: [] });
+  const lastStruckRef = useRef<Record<string, number>>({});
   const [nodes, setNodes] = useState<WorkNode[]>(starterNodes);
   const [edges, setEdges] = useState<WorkEdge[]>(starterEdges);
   const [selection, setSelection] = useState<Selection>(null);
@@ -280,8 +326,11 @@ export default function NeuralWorkbench({
   const [values, setValues] = useState<Record<string, number>>({});
   const [pulse, setPulse] = useState(0);
   const [status, setStatus] = useState("Ready for a manual pulse.");
-  const [jamOn, setJamOn] = useState(false);
+  const [instrumentUnlocked, setInstrumentUnlocked] = useState(false);
+  const [colourEditing, setColourEditing] = useState(false);
   const [showBoredPrompt, setShowBoredPrompt] = useState(false);
+  const [showStringHelp, setShowStringHelp] = useState(false);
+  const [struckEdges, setStruckEdges] = useState<string[]>([]);
   const metrics = useMemo(
     () => graphMetrics(nodes, edges, samples),
     [edges, nodes, samples],
@@ -358,7 +407,13 @@ export default function NeuralWorkbench({
       return;
     }
     idRef.current += 1;
-    const edge = { id: `edge-${idRef.current}`, from, to, weight: 0.5 };
+    const edge = {
+      id: `edge-${idRef.current}`,
+      from,
+      to,
+      weight: 0.5,
+      color: "#176b65",
+    };
     setEdges((items) => [...items, edge]);
     setSelection({ kind: "edge", id: edge.id });
     setStatus(`Connected ${source.label} to ${target.label}.`);
@@ -386,20 +441,133 @@ export default function NeuralWorkbench({
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (!dragging) return;
-    const point = pointFromPointer(event.clientX, event.clientY);
-    setNodes((items) =>
-      items.map((node) =>
-        node.id === dragging.id
-          ? {
-              ...node,
-              x: Math.max(45, Math.min(1055, point.x + dragging.dx)),
-              y: Math.max(55, Math.min(565, point.y + dragging.dy)),
-            }
-          : node,
-      ),
+  const pluckEdge = useCallback((edge: WorkEdge, length: number, speed: number) => {
+    const context = audioRef.current;
+    if (!context) return;
+    const tone = edgeTones.find((candidate) => candidate.color === edge.color) ?? edgeTones[0];
+    const speedStrength = Math.max(0.35, Math.min(1, speed / 2.1));
+    const lengthFrequency = 126000 / Math.max(120, length);
+    const frequency = Math.max(85, Math.min(1100, lengthFrequency * tone.pitchRatio));
+    const duration = 0.42 + Math.min(0.4, length / 1500);
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const fundamental = context.createOscillator();
+    const fundamentalGain = context.createGain();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    oscillator.type = tone.waveform;
+    oscillator.frequency.setValueAtTime(frequency, now);
+    fundamental.type = "sine";
+    fundamental.frequency.setValueAtTime(frequency, now);
+    fundamental.detune.setValueAtTime(-5, now);
+    fundamentalGain.gain.value = 0.38;
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(
+      tone.filterFrequency * (0.82 + speedStrength * 0.36),
+      now,
     );
+    filter.Q.value = 0.8;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(
+      0.07 + speedStrength * 0.18,
+      now + 0.009,
+    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(filter);
+    fundamental.connect(fundamentalGain);
+    fundamentalGain.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioOutputRef.current ?? context.destination);
+    oscillator.start(now);
+    fundamental.start(now);
+    oscillator.stop(now + duration + 0.03);
+    fundamental.stop(now + duration + 0.03);
+  }, []);
+
+  const beginStrum = (event: ReactPointerEvent<SVGElement>) => {
+    if (!instrumentUnlocked || event.button !== 0) return;
+    if (audioRef.current?.state === "suspended") void audioRef.current.resume();
+    const point = pointFromPointer(event.clientX, event.clientY);
+    strumRef.current = {
+      active: true,
+      pointerId: event.pointerId,
+      lastPoint: { ...point, time: event.timeStamp },
+      struckIds: [],
+    };
+    svgRef.current?.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const point = pointFromPointer(event.clientX, event.clientY);
+    if (dragging) {
+      setNodes((items) =>
+        items.map((node) =>
+          node.id === dragging.id
+            ? {
+                ...node,
+                x: Math.max(45, Math.min(1055, point.x + dragging.dx)),
+                y: Math.max(55, Math.min(565, point.y + dragging.dy)),
+              }
+            : node,
+        ),
+      );
+      return;
+    }
+
+    const strum = strumRef.current;
+    if (
+      !instrumentUnlocked ||
+      !strum.active ||
+      !strum.lastPoint ||
+      strum.pointerId !== event.pointerId
+    ) return;
+    const now = event.timeStamp;
+    const currentPoint = { ...point, time: now };
+    const travelled = Math.hypot(
+      currentPoint.x - strum.lastPoint.x,
+      currentPoint.y - strum.lastPoint.y,
+    );
+    const elapsed = Math.max(1, now - (strum.lastPoint.time ?? now));
+    const speed = travelled / elapsed;
+    const crossed: string[] = [];
+
+    edges.forEach((edge) => {
+      const source = nodes.find((node) => node.id === edge.from);
+      const target = nodes.find((node) => node.id === edge.to);
+      if (!source || !target) return;
+      if (
+        !segmentsCross(strum.lastPoint as CanvasPoint, currentPoint, source, target) ||
+        now - (lastStruckRef.current[edge.id] ?? 0) < 85
+      ) {
+        return;
+      }
+      lastStruckRef.current[edge.id] = now;
+      const length = Math.hypot(target.x - source.x, target.y - source.y);
+      pluckEdge(edge, length, speed);
+      crossed.push(edge.id);
+    });
+
+    if (crossed.length > 0) {
+      strum.struckIds = [...new Set([...strum.struckIds, ...crossed])];
+      setStatus(
+        strum.struckIds.length > 1
+          ? `${strum.struckIds.length} connection strings struck in this stroke.`
+          : "Connection string struck.",
+      );
+      setStruckEdges((current) => [...new Set([...current, ...crossed])]);
+      crossed.forEach((id) => {
+        window.setTimeout(
+          () => setStruckEdges((current) => current.filter((edgeId) => edgeId !== id)),
+          270,
+        );
+      });
+    }
+    strumRef.current.lastPoint = currentPoint;
+  };
+
+  const endPointerAction = () => {
+    setDragging(null);
+    strumRef.current = { active: false, pointerId: null, lastPoint: null, struckIds: [] };
   };
 
   const deleteSelection = () => {
@@ -429,6 +597,7 @@ export default function NeuralWorkbench({
     setSelection(null);
     setConnectFrom(null);
     setConnectMode(false);
+    setColourEditing(false);
     setStatus("Starter network restored.");
   };
 
@@ -448,74 +617,44 @@ export default function NeuralWorkbench({
     );
   };
 
-  const playValues = useCallback(
-    (nextValues: Record<string, number>) => {
-      const context = audioRef.current;
-      if (!context) return;
-      const soundingNodes = nodes
-        .filter((node) => node.kind !== "input")
-        .slice(0, 6);
-      const scale = [0, 3, 5, 7, 10, 12];
-      const now = context.currentTime;
-      soundingNodes.forEach((node, index) => {
-        const strength = Math.min(1, Math.abs(nextValues[node.id] ?? 0));
-        if (strength < 0.05) return;
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const semitones = scale[index % scale.length] + ((nextValues[node.id] ?? 0) > 0.55 ? 12 : 0);
-        oscillator.type = node.kind === "output" ? "triangle" : "sine";
-        oscillator.frequency.value = 146.83 * 2 ** (semitones / 12);
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.012 + strength * 0.022, now + 0.025);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.31);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(now);
-        oscillator.stop(now + 0.33);
-      });
-    },
-    [nodes],
-  );
-
-  const startJam = async () => {
+  const unlockStrings = async () => {
     if (!audioRef.current) {
       const AudioContextClass =
         window.AudioContext ??
         (window as typeof window & { webkitAudioContext?: typeof AudioContext })
           .webkitAudioContext;
-      if (AudioContextClass) audioRef.current = new AudioContextClass();
+      if (AudioContextClass) {
+        const context = new AudioContextClass();
+        const compressor = context.createDynamicsCompressor();
+        const masterGain = context.createGain();
+        compressor.threshold.value = -18;
+        compressor.knee.value = 16;
+        compressor.ratio.value = 8;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.18;
+        masterGain.gain.value = 1.15;
+        compressor.connect(masterGain);
+        masterGain.connect(context.destination);
+        audioRef.current = context;
+        audioOutputRef.current = compressor;
+      }
     }
     if (audioRef.current?.state === "suspended") await audioRef.current.resume();
-    setJamOn(true);
+    setInstrumentUnlocked(true);
     setShowBoredPrompt(false);
     window.sessionStorage.setItem("nnvl-bored-prompt", "used");
-    setStatus("Neural Jam is playing. Each pulse turns neuron activity into a short chord.");
+    setStatus("String mode unlocked. Hold the pointer down and drag across the connections.");
   };
 
   useEffect(() => {
-    if (!jamOn) return;
-    const tick = () => {
-      const sample = samples[jamIndexRef.current % Math.max(1, samples.length)] ?? {
-        x: 0,
-        y: 0,
-        label: 0,
-      };
-      jamIndexRef.current += 7;
-      const nextInputs = sampleInputs(nodes, sample);
-      const pass = runGraph(nodes, edges, nextInputs);
-      setInputValues(nextInputs);
-      setValues(pass.values);
-      setPulse((value) => value + 1);
-      playValues(pass.values);
-    };
-    tick();
-    const timer = window.setInterval(tick, 560);
-    return () => window.clearInterval(timer);
-  }, [edges, jamOn, nodes, playValues, samples]);
+    if (!instrumentUnlocked) return;
+    const helpTimer = window.setTimeout(() => setShowStringHelp(true), 15000);
+    return () => window.clearTimeout(helpTimer);
+  }, [instrumentUnlocked]);
 
   useEffect(() => {
     const section = sectionRef.current;
-    if (!section || jamOn) return;
+    if (!section || instrumentUnlocked) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -528,7 +667,7 @@ export default function NeuralWorkbench({
           timer = setTimeout(() => {
             setShowBoredPrompt(true);
             window.sessionStorage.setItem("nnvl-bored-prompt", "used");
-          }, 30000);
+          }, 8000);
         }
       },
       { threshold: [0.45] },
@@ -538,11 +677,12 @@ export default function NeuralWorkbench({
       if (timer) clearTimeout(timer);
       observer.disconnect();
     };
-  }, [jamOn]);
+  }, [instrumentUnlocked]);
 
   useEffect(
     () => () => {
       if (audioRef.current) void audioRef.current.close();
+      audioOutputRef.current = null;
     },
     [],
   );
@@ -596,21 +736,41 @@ export default function NeuralWorkbench({
           <button type="button" onClick={testDataset}>Test dataset</button>
           <button type="button" onClick={() => evaluateCurrent()}>Run pulse</button>
           <button type="button" onClick={resetGraph}>Reset bench</button>
+          {instrumentUnlocked ? (
+            <button
+              type="button"
+              className={colourEditing ? "active" : undefined}
+              onClick={() => {
+                setColourEditing((value) => !value);
+                setStatus(
+                  colourEditing
+                    ? "String colour editor closed."
+                    : "Colour editor ready. Select a connection, then choose its tone.",
+                );
+              }}
+            >
+              {colourEditing ? "Close colours" : "Edit edge colours"}
+            </button>
+          ) : null}
         </div>
 
         <div className="workbench-body">
           <div className="workbench-canvas-wrap">
             <svg
               ref={svgRef}
-              className="workbench-canvas"
+              className={`workbench-canvas ${instrumentUnlocked ? "string-mode" : ""}`}
               viewBox="0 0 1100 620"
               role="img"
               aria-label="Editable feed-forward neural network. Drag neurons or use the toolbar and inspector to edit the graph."
               onPointerMove={handlePointerMove}
-              onPointerUp={() => setDragging(null)}
-              onPointerCancel={() => setDragging(null)}
-              onPointerDown={() => setSelection(null)}
+              onPointerUp={endPointerAction}
+              onPointerCancel={endPointerAction}
+              onPointerDown={(event) => {
+                setSelection(null);
+                beginStrum(event);
+              }}
               onDoubleClick={(event) => {
+                if (instrumentUnlocked) return;
                 const point = pointFromPointer(event.clientX, event.clientY);
                 addNode("hidden", point);
               }}
@@ -633,6 +793,7 @@ export default function NeuralWorkbench({
                 const target = nodes.find((node) => node.id === edge.to);
                 if (!source || !target) return null;
                 const selected = selection?.kind === "edge" && selection.id === edge.id;
+                const struck = struckEdges.includes(edge.id);
                 return (
                   <g key={edge.id}>
                     <line
@@ -640,13 +801,14 @@ export default function NeuralWorkbench({
                       y1={source.y}
                       x2={target.x}
                       y2={target.y}
-                      className={selected ? "work-edge selected" : "work-edge"}
-                      stroke={edge.weight >= 0 ? "#176b65" : "#b65a3a"}
+                      className={`work-edge ${selected ? "selected" : ""} ${struck ? "struck" : ""}`}
+                      stroke={edge.color}
                       strokeWidth={1.5 + Math.min(4, Math.abs(edge.weight) * 1.25)}
                       markerEnd="url(#edge-arrow)"
                       onPointerDown={(event) => {
                         event.stopPropagation();
                         setSelection({ kind: "edge", id: edge.id });
+                        beginStrum(event);
                       }}
                     />
                     <text
@@ -698,9 +860,20 @@ export default function NeuralWorkbench({
             {showBoredPrompt ? (
               <div className="bored-note">
                 <button type="button" className="bored-dismiss" aria-label="Dismiss suggestion" onClick={() => setShowBoredPrompt(false)}>×</button>
-                <p>Feeling bored?</p>
-                <button type="button" onClick={() => void startJam()}>Click here</button>
+                <button type="button" className="bored-unlock" onClick={() => void unlockStrings()}>
+                  Feeling bored? Click here.
+                </button>
               </div>
+            ) : null}
+
+            {showStringHelp ? (
+              <aside className="string-help-bubble" role="status">
+                <button type="button" aria-label="Dismiss string instructions" onClick={() => setShowStringHelp(false)}>×</button>
+                <strong>The connections are strings now.</strong>
+                <p>
+                  Hold the pointer down and drag across them. Crossing several in one stroke plays them all, and faster strokes sound stronger. Connection length works like string length: a shorter edge vibrates faster and plays a higher note, while a longer edge vibrates more slowly and plays a lower note. Drag either neuron at the end of an edge to change its length and retune it. Use “Edit edge colours” to change its note and timbre further.
+                </p>
+              </aside>
             ) : null}
           </div>
 
@@ -801,23 +974,65 @@ export default function NeuralWorkbench({
                       }
                     />
                   </label>
-                  <small>Petrol carries a positive weight; rust carries a negative one.</small>
+                  {instrumentUnlocked && colourEditing ? (
+                    <fieldset className="edge-tone-picker">
+                      <legend>String colour and tone</legend>
+                      <div>
+                        {edgeTones.map((tone) => (
+                          <button
+                            type="button"
+                            key={tone.color}
+                            className={selectedEdge.color === tone.color ? "selected" : undefined}
+                            aria-label={`${tone.name}, ${tone.description} tone`}
+                            title={`${tone.name}: ${tone.description} tone`}
+                            style={{ backgroundColor: tone.color }}
+                            onClick={() => {
+                              setEdges((items) =>
+                                items.map((edge) =>
+                                  edge.id === selectedEdge.id
+                                    ? { ...edge, color: tone.color }
+                                    : edge,
+                                ),
+                              );
+                              const source = nodes.find((node) => node.id === selectedEdge.from);
+                              const target = nodes.find((node) => node.id === selectedEdge.to);
+                              if (source && target) {
+                                const preview = () => {
+                                  pluckEdge(
+                                    { ...selectedEdge, color: tone.color },
+                                    Math.hypot(target.x - source.x, target.y - source.y),
+                                    1.8,
+                                  );
+                                  setStatus(`${tone.name} tone selected and previewed.`);
+                                };
+                                if (audioRef.current?.state === "suspended") {
+                                  void audioRef.current.resume().then(preview);
+                                } else {
+                                  preview();
+                                }
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <small>Colour changes the note, waveform and timbre. Choosing a colour plays a preview. Weight remains part of the neural calculation.</small>
+                    </fieldset>
+                  ) : instrumentUnlocked ? (
+                    <small>Use “Edit edge colours” above to change this string’s tone.</small>
+                  ) : (
+                    <small>Line width reflects the connection’s absolute weight.</small>
+                  )}
                 </>
               ) : null}
             </section>
 
-            <section className="jam-panel">
-              <p className="eyebrow">Neural Jam</p>
-              <strong>Hear the network fire</strong>
-              <p>Dataset samples become a short sequence. Pitch and volume follow the current neuron activations.</p>
-              <button
-                type="button"
-                className={jamOn ? "active" : undefined}
-                onClick={() => (jamOn ? setJamOn(false) : void startJam())}
-              >
-                {jamOn ? "Stop Neural Jam" : "Play Neural Jam"}
-              </button>
-            </section>
+            {instrumentUnlocked ? (
+              <section className="string-mode-panel">
+                <p className="eyebrow">String mode unlocked</p>
+                <strong>Press, drag and cross a connection</strong>
+                <p>Shorter edges play higher notes; longer edges play lower ones. Move either connected neuron to retune an edge, and use “Edit edge colours” above to change its note and timbre further.</p>
+              </section>
+            ) : null}
           </aside>
         </div>
       </div>
