@@ -619,7 +619,7 @@ function DecisionMap({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const pointFromEvent = useCallback(
-    (event: React.PointerEvent<HTMLCanvasElement>) => {
+    (event: React.MouseEvent<HTMLCanvasElement>) => {
       const rectangle = event.currentTarget.getBoundingClientRect();
       const x = ((event.clientX - rectangle.left) / rectangle.width) * 2 - 1;
       const y = 1 - ((event.clientY - rectangle.top) / rectangle.height) * 2;
@@ -1326,6 +1326,7 @@ export default function Home() {
   const [tutorialActive, setTutorialActive] = useState(false);
   const [tutorialIndex, setTutorialIndex] = useState(0);
   const [tutorialRun, setTutorialRun] = useState(0);
+  const [tutorialCollapsed, setTutorialCollapsed] = useState(false);
   const [seenSegments, setSeenSegments] = useState<number[]>([]);
   const [guideMessage, setGuideMessage] = useState<string | null>(null);
   const [bonusFactsEnabled, setBonusFactsEnabled] = useState(true);
@@ -1465,6 +1466,7 @@ export default function Home() {
 
   const prepareTutorialSegment = (index: number) => {
     const segment = courseSegments[index];
+    setTutorialCollapsed(false);
     setTutorialIndex(index);
     setSeenSegments((segments) =>
       segments.includes(index) ? segments : [...segments, index],
@@ -1507,6 +1509,7 @@ export default function Home() {
 
   const endGuide = () => {
     setTutorialActive(false);
+    setTutorialCollapsed(false);
     setGuideMenuOpen(false);
     setShowTutorialSegments(false);
     showGuideMessage("Hope you had fun! Click again if needed!");
@@ -1906,12 +1909,31 @@ export default function Home() {
       />
 
       {tutorialActive ? (
-        <div className="tutorial-panel-wrap">
+        <div className={`tutorial-panel-wrap ${tutorialCollapsed ? "tutorial-collapsed" : ""}`}>
+          <button
+            type="button"
+            className="tutorial-mobile-summary"
+            aria-expanded={!tutorialCollapsed}
+            aria-controls="tutorial-panel"
+            onClick={() => setTutorialCollapsed(false)}
+          >
+            <span>{tutorialIndex + 1}/{courseSegments.length}</span>
+            <strong>{activeTutorialSegment.eyebrow}</strong>
+            <em>Open lesson</em>
+          </button>
           <div className="tutorial-side-actions" aria-label="Tutorial shortcuts">
             <button type="button" onClick={skipSegment}>Skip segment</button>
             <button type="button" onClick={endGuide}>End guide</button>
           </div>
-          <aside className="tutorial-panel" aria-live="polite" aria-label="Neural network tutorial">
+          <aside id="tutorial-panel" className="tutorial-panel" aria-live="polite" aria-label="Neural network tutorial">
+            <button
+              type="button"
+              className="tutorial-mobile-collapse"
+              aria-expanded={!tutorialCollapsed}
+              onClick={() => setTutorialCollapsed(true)}
+            >
+              Minimise lesson to use the lab
+            </button>
             <div className="tutorial-progress-row">
               <span>Chapter {activeTutorialSegment.chapter} · Segment {tutorialIndex + 1} of {courseSegments.length}</span>
               <span>{Math.round(((tutorialIndex + 1) / courseSegments.length) * 100)}%</span>
@@ -2071,7 +2093,10 @@ export default function Home() {
 
       <footer>
         <p>Built by Writban Alim · Neural Network Visual Lab</p>
-        <p>Everything trains in your browser · no prepared results</p>
+        <p>
+          Everything trains in your browser · no prepared results ·{" "}
+          <a href="https://github.com/Writban/Neural-Network-Visual-Lab">View source on GitHub</a>
+        </p>
       </footer>
     </main>
   );

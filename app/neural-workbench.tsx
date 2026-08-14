@@ -32,6 +32,18 @@ type WorkEdge = {
 
 type CanvasPoint = { x: number; y: number; time?: number };
 
+type WorkbenchView = "fit" | "inputs" | "hidden" | "output";
+
+const workbenchViews: Record<
+  WorkbenchView,
+  { label: string; x: number; y: number; width: number; height: number }
+> = {
+  fit: { label: "Fit all", x: 0, y: 0, width: 1100, height: 620 },
+  inputs: { label: "Inputs", x: 0, y: 0, width: 620, height: 620 },
+  hidden: { label: "Hidden", x: 245, y: 0, width: 620, height: 620 },
+  output: { label: "Output", x: 480, y: 0, width: 620, height: 620 },
+};
+
 const edgeTones: Array<{
   color: string;
   name: string;
@@ -331,6 +343,8 @@ export default function NeuralWorkbench({
   const [showBoredPrompt, setShowBoredPrompt] = useState(false);
   const [showStringHelp, setShowStringHelp] = useState(false);
   const [struckEdges, setStruckEdges] = useState<string[]>([]);
+  const [workbenchView, setWorkbenchView] = useState<WorkbenchView>("fit");
+  const activeWorkbenchView = workbenchViews[workbenchView];
   const metrics = useMemo(
     () => graphMetrics(nodes, edges, samples),
     [edges, nodes, samples],
@@ -362,12 +376,14 @@ export default function NeuralWorkbench({
   }, [evaluateCurrent]);
 
   const pointFromPointer = (clientX: number, clientY: number) => {
-    const rectangle = svgRef.current?.getBoundingClientRect();
-    if (!rectangle) return { x: 0, y: 0 };
-    return {
-      x: ((clientX - rectangle.left) / rectangle.width) * 1100,
-      y: ((clientY - rectangle.top) / rectangle.height) * 620,
-    };
+    const svg = svgRef.current;
+    const matrix = svg?.getScreenCTM();
+    if (!svg || !matrix) return { x: 0, y: 0 };
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const transformed = point.matrixTransform(matrix.inverse());
+    return { x: transformed.x, y: transformed.y };
   };
 
   const addNode = (kind: "input" | "hidden", point?: { x: number; y: number }) => {
@@ -700,8 +716,9 @@ export default function NeuralWorkbench({
         </div>
         <p>
           Add neurons, draw individual connections, change weights and biases,
-          then train or test the graph against the dataset above. Double-click
-          empty space to add a hidden neuron.
+          then train or test the graph against the dataset above. Use the
+          toolbar on a phone, or double-click empty space with a mouse, to add a
+          hidden neuron.
         </p>
       </header>
 
@@ -756,10 +773,24 @@ export default function NeuralWorkbench({
 
         <div className="workbench-body">
           <div className="workbench-canvas-wrap">
+            <div className="workbench-mobile-view" aria-label="Choose a workbench canvas view">
+              <span>Canvas view</span>
+              {(Object.keys(workbenchViews) as WorkbenchView[]).map((view) => (
+                <button
+                  type="button"
+                  key={view}
+                  className={workbenchView === view ? "active" : undefined}
+                  aria-pressed={workbenchView === view}
+                  onClick={() => setWorkbenchView(view)}
+                >
+                  {workbenchViews[view].label}
+                </button>
+              ))}
+            </div>
             <svg
               ref={svgRef}
               className={`workbench-canvas ${instrumentUnlocked ? "string-mode" : ""}`}
-              viewBox="0 0 1100 620"
+              viewBox={`${activeWorkbenchView.x} ${activeWorkbenchView.y} ${activeWorkbenchView.width} ${activeWorkbenchView.height}`}
               role="img"
               aria-label="Editable feed-forward neural network. Drag neurons or use the toolbar and inspector to edit the graph."
               onPointerMove={handlePointerMove}
@@ -796,6 +827,20 @@ export default function NeuralWorkbench({
                 const struck = struckEdges.includes(edge.id);
                 return (
                   <g key={edge.id}>
+                    <line
+                      x1={source.x}
+                      y1={source.y}
+                      x2={target.x}
+                      y2={target.y}
+                      className="work-edge-hit"
+                      stroke="transparent"
+                      strokeWidth="28"
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        setSelection({ kind: "edge", id: edge.id });
+                        beginStrum(event);
+                      }}
+                    />
                     <line
                       x1={source.x}
                       y1={source.y}
@@ -839,6 +884,12 @@ export default function NeuralWorkbench({
                     className={`work-node ${selected ? "selected" : ""} ${connecting ? "connecting" : ""}`}
                     onPointerDown={(event) => handleNodePointerDown(event, node)}
                   >
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r="44"
+                      className="node-hit-target"
+                    />
                     <circle
                       cx={node.x}
                       cy={node.y}

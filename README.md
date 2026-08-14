@@ -1,8 +1,30 @@
 # Neural Network Visual Lab
 
+<p align="center">
+  <a href="https://writban.github.io/Neural-Network-Visual-Lab/"><strong>Open the live lab</strong></a>
+  ·
+  <a href="https://github.com/Writban/Neural-Network-Visual-Lab/actions/workflows/deploy-pages.yml">Deployment status</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Writban/Neural-Network-Visual-Lab/actions/workflows/deploy-pages.yml">
+    <img alt="Deploy to GitHub Pages" src="https://github.com/Writban/Neural-Network-Visual-Lab/actions/workflows/deploy-pages.yml/badge.svg" />
+  </a>
+</p>
+
 An interactive browser application for constructing and comparing small neural
 networks on reproducible two-dimensional datasets. The lab trains real models
 in the browser and redraws their decision boundaries as their weights change.
+
+## Try it in 60 seconds
+
+1. Open the [live lab](https://writban.github.io/Neural-Network-Visual-Lab/).
+2. Choose **XOR quadrants**, then press **Train 1 step** several times.
+3. Compare the changing decision map, loss and accuracy.
+4. Scroll to **Neural Workbench** to edit individual neurons and connections.
+
+No account, API key or server is required. All training happens locally in the
+browser.
 
 ## What it does
 
@@ -27,6 +49,24 @@ in the browser and redraws their decision boundaries as their weights change.
   optional string mode lets a learner drag across connections to play them:
   edge colour changes note and timbre, shorter edges play higher pitches,
   longer edges play lower pitches, and stroke speed changes strength.
+
+## Phone and touch support
+
+- controls reflow into full-width touch targets;
+- charts use phone-friendly proportions instead of being compressed strips;
+- tutorial lessons can be minimised while completing an action in the lab;
+- the editable workbench provides Fit, Inputs, Hidden and Output views for
+  precise touch editing; and
+- enlarged touch targets make neurons and connections easier to select without
+  changing their visual size.
+
+## Technology
+
+- TypeScript and React;
+- Canvas 2D for decision maps, loss curves and the standard network view;
+- SVG and pointer events for the editable neural graph;
+- Web Audio API for the optional connection-string instrument; and
+- Vite and GitHub Actions for the static GitHub Pages build.
 
 ## Implementation
 

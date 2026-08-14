@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check TypeScript
+        run: npm run typecheck
+
       - name: Build static site
         run: npm run build:github
 
